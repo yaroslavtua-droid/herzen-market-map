@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Карта рынка HERZEN: ТЗ для CTO</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Tektur:wght@500;700&display=swap">
+<style>
+:root{--bg:#F4F5F6;--paper:#FFFFFF;--fg:#12161B;--muted:#4C5763;--line:#D3D8DD;--accent:#005F6B;--soft:#EEF1F3;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#0A0C0F;--paper:#12161B;--fg:#E6EBF0;--muted:#8C98A6;--line:#2A323C;--accent:#35E6F2;--soft:#1A2027;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 "IBM Plex Sans",system-ui,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--paper);border-bottom:1px solid var(--line)}
+.bar{max-width:980px;margin:0 auto;padding:10px max(16px,env(safe-area-inset-left));display:flex;gap:6px 18px;flex-wrap:wrap;align-items:center}
+.brand{font:700 15px "Tektur",sans-serif;text-transform:uppercase;letter-spacing:.04em;margin-right:auto}
+nav a{color:var(--muted);text-decoration:none;font-size:14px;padding:6px 0;border-bottom:2px solid transparent}
+nav{display:flex;gap:16px;flex-wrap:wrap}
+nav a.on{color:var(--fg);border-color:var(--accent)}
+nav a.map{color:var(--accent);font-weight:600}
+main{max-width:980px;margin:0 auto;padding:24px max(16px,env(safe-area-inset-left)) 64px}
+article{background:var(--paper);border:1px solid var(--line);padding:24px clamp(16px,4vw,40px)}
+h1{font:700 clamp(26px,4vw,40px)/1.1 "Tektur",sans-serif;margin:0 0 8px}
+h2{font:600 24px/1.25 "Tektur",sans-serif;margin:40px 0 12px;padding-top:16px;border-top:1px solid var(--line)}
+h3{font-size:18px;margin:28px 0 8px}
+p,li{max-width:72ch}
+a{color:var(--accent)}
+table{border-collapse:collapse;width:100%;font-size:14px;margin:12px 0}
+.tw{overflow-x:auto}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--soft)}
+code{font:13px "IBM Plex Mono",monospace;background:var(--soft);padding:1px 4px}
+pre{background:var(--soft);padding:14px;overflow-x:auto;border:1px solid var(--line)}
+pre code{background:none;padding:0}
+ul.contains-task-list,li.task-list-item{list-style:none}
+.foot{color:var(--muted);font-size:13px;margin-top:24px}
+</style></head><body>
+<header><div class="bar"><span class="brand">Карта рынка HERZEN</span>
+<nav><a href="#tz" data-t="tz">ТЗ для CTO</a><a href="#starter" data-t="starter">Стартовый набор</a><a href="#appendix" data-t="appendix">Приложение: пилот</a><a class="map" href="../">← Макет карты</a></nav></div></header>
+<main><article id="out">Загружаю…</article>
+<p class="foot">Внутренний документ HERZEN, черновик на 26.11.2026. Имена сотрудников заменены ролями.</p></main>
+<script type="text/markdown" id="md-tz"># Карта рынка HERZEN: ТЗ для CTO
+Срез на 26.11.2026
+
+## 1. Что строим
+
+Карту индустриальной недвижимости Москвы и области: у каждого участка и здания паспорт и цвет. Зелёный — объект в нашей базе, серый — не знаем. Люди и ИИ перекрашивают серое в зелёное.
+
+- **Final Point:** реестр всей индустриальной недвижимости региона: где, что, фото, характеристики, собственник, контакт в CRM, арендаторы. У каждого поля источник и дата.
+- **MVP за 4–6 недель:** кадастр и OSM, объекты HerzenCRM с границами из участков, окраска и счётчик покрытия.
+- Пользуются все сотрудники по рабочей учётке. Ведёт команда CTO в своём репозитории. Вид — [макет карты](../).
+
+## 2. Как устроено
+
+1. **Якорь — свой номер** участка, здания и комплекса. Кадастровый — внешний ключ с историей: меняется при разделе, у стройки его нет.
+2. **Факты с источником и датой**, а не поля. Паспорт собирается по приоритету источников. Неизвестное — пусто, не ноль. Ошибка доступа — не «не найдено». Точность, полнота и свежесть — отдельные признаки.
+3. **Автоматика даёт кандидата, подтверждает человек или документ.** Точке объекта в CRM не верим: в Ерино она легла на чужой участок в 191 м от верного.
+4. **Адаптер на источник** с одним контрактом: внешний номер, геометрия или адрес, поля, ссылка, дата. Сопоставление — общий модуль. Новый источник добавляет строки, а не таблицы.
+5. **Комплекс отдельно от участка.** Предложение CRM, корпус, здание, участок и комплекс связаны «многие ко многим». Связь хранит охват: корпус, общий участок, площадка, часть участка.
+6. **Стек:** PostgreSQL с PostGIS, Martin, MapLibre GL JS, Python. Аналитики — в QGIS на той же базе, свой ГИС-редактор не пишем. Машина Linux, около 4 ядер, 16 ГБ, 100 ГБ диска.
+
+CRM только читаем ночным снимком через HerzenStats: на перебор она отвечает 429. Телефонов, почт и имён из CRM на карте нет. Данные Яндекса не храним, он только подложка. Защиту площадок не обходим. Сеть — тикетом администратору. С ИИ-агентами пишем сначала тест на эталоне, потом код.
+
+## 3. Границы объекта
+
+В CRM точные координаты есть у корпусов и блоков, у объекта — одна точка внутри, кадастровых номеров нет.
+
+1. Черновик — участки, куда попали точки корпусов. Точка объекта не участвует.
+2. Смежные участки с тем же видом использования и адресом — кандидаты пунктиром.
+3. Любой сотрудник кликом включает или исключает участок на спутнике и жмёт «Граница верна». Кто и когда — в журнал.
+4. Контур — объединение подтверждённых участков. Список кадастров — эти участки и здания внутри. Как он попадёт в CRM, решает ответственный за HerzenCRM.
+
+Новых таблиц нет: состав — связи `link` между `site` и `parcel`, у `site` — геометрия и статус (черновик, подтверждена, проверить).
+
+| Случай | Что делаем |
+| --- | --- |
+| Точка корпуса вне участков | Задача проверки; нет в кадастре — контур от руки |
+| Один участок у двух объектов | Охват «общий участок», площадь делится по корпусам |
+| Объект на части участка | Охват «часть участка», в покрытие — только его здания |
+| Участок без зданий | Только соседом-кандидатом или вручную |
+| Участок разделили или объединили | Статус «проверить» |
+
+## 4. Данные
+
+Схема и SQL — во вкладке [Стартовый набор](#starter).
+
+| Таблица | Что хранит |
+| --- | --- |
+| `parcel` | Участок: кадастр с историей, геометрия с версией, категория, вид использования, площадь |
+| `building` | Здание из кадастра или OSM: площадь пятна и кадастровая, этажность |
+| `site` | Комплекс: название, класс, тип, номер CRM, граница и статус |
+| `party` | Юрлицо: ИНН, название, группа |
+| `source` | Источник: условия, частота, приоритет |
+| `source_record` | Сырая запись как пришла |
+| `link` | Связь: статус, метод, охват, доказательства, кто и когда |
+| `fact` | Утверждение: объект, поле, значение, источник, дата |
+| `crm_card` | Карточка CRM с корпусами и «точкой комплекса» |
+| `review_task` | Ручная проверка: чего не хватает, кандидаты, итог |
+
+Собственник и арендатор — факты с ролью на `party`. Уровень знания — view. Сырую запись не правим, ручной факт сильнее автоматического, отозванная связь остаётся в истории.
+
+## 5. Источники по этапам
+
+| Слой | Источник | Этап |
+| --- | --- | --- |
+| Участки | НСПД | MVP |
+| Здания | НСПД, OpenStreetMap | MVP |
+| Промназначение | Вид использования и категория из НСПД, `landuse=industrial` из OSM | MVP |
+| Наша база | Ночной снимок HerzenCRM | MVP |
+| Опознанные комплексы | Каталог ЦИАН через снимок в HerzenCRM, M2Data | 2 |
+| В рынке сейчас | Снимок объявлений в HerzenCRM | 2 |
+| Собственники | Выписки ЕГРН, ЕГРЮЛ по ИНН | 3 |
+| Арендаторы | Организации на Яндексе и 2ГИС | 4 |
+| Конкуренты | Фиды агентств | 4 |
+| Будущее предложение | Разрешения, ГПЗУ, инвесткарта, пресс-релизы, ПЗЗ | 5 |
+
+НСПД отдаёт около 1 запроса в секунду, массовая выгрузка не проверена. ЦИАН с 20.11.2026 закрыт для сервера. ЕГРН с 01.03.2023 скрывает физлиц, юрлица видны.
+
+## 6. Шкала знания
+
+| Уровень | Цвет | Условие |
+| --- | --- | --- |
+| 0. Не знаем | Серый | Есть только кадастр |
+| 1. Опознан | Синий | Известны название или тип, площадь, класс |
+| 2. Собственник известен | Жёлтый | Есть юрлицо, объекта или контакта нет в CRM |
+| 3. В базе | Зелёный | Объект в CRM, собственник и контакт занесены |
+| Не наш профиль | Штриховка | Исключил аналитик: ТЭЦ, депо, очистные |
+
+- Покрытие = зелёные м² зданий / все м² промназначения без исключённых.
+- Качественное — класс A и B, правило в настройке. Первая цель — 100% зелёного по нему. До этапа 2 рядом показана площадь без класса.
+- Зелёным красит только подтверждённая связь. Кандидат — пунктир, в счётчик не идёт. Объект без правок в CRM 12 месяцев получает метку «проверить».
+
+Паспорт — 8 полей: тип, площадь, класс, фото, собственник, контакт, арендаторы, что в рынке; у каждого источник и дата или «не знаем». Цвет дублируется словом.
+
+## 7. MVP
+
+Входит:
+
+1. База PostGIS по схеме раздела 4.
+2. Участки и здания промназначения по региону, маска.
+3. Импорт снимка CRM и черновики границ.
+4. Режим «граница объекта» — единственная правка на карте.
+5. Веб-карта: окраска, паспорт по клику, фильтры, счётчики покрытия и «размечено N из M». Чтение — и с телефона.
+6. Две очереди по площади с выгрузкой в Excel: серые участки и объекты без границы.
+7. Вход по рабочей учётке, одна роль, журнал правок.
+8. QGIS для аналитиков.
+
+Нет: ЦИАН, M2Data, ЕГРН, арендаторов, ролей, мобильного приложения.
+
+Неделя 1 — вертикальный срез на одном городском округе от кадастра до окрашенной карты. Неделя 2 — паспорт и разметка там же. Срез покажет полноту границ НСПД, долю объектов CRM на участках и годность маски. Задачи — в [Стартовый набор](#starter).
+
+Приёмка:
+
+- [ ] Отчёт среза: доля карточек CRM по статусу связи и, отдельно, точность подтверждённых связей на ручной выборке. Цели — после среза.
+- [ ] У каждого объекта CRM с корпусами есть черновик границы или задача с причиной. На округе среза все границы подтверждены.
+- [ ] Счётчик покрытия совпадает с контрольным SQL.
+- [ ] Карта региона — быстрее 3 с, паспорт — быстрее 1 с.
+- [ ] Тестовый CSV-источник подключается за 1 день без смены схемы.
+- [ ] Нет контактов из CRM на карте и в выгрузках.
+- [ ] руководитель и аналитик за 15 минут без подсказок находят 5 крупнейших серых участков района.
+- [ ] 8 проверок на эталоне — [Приложение: пилот](#appendix).
+
+## 8. Этапы после MVP
+
+2. **Опознание:** ЦИАН, M2Data, объявления. Итог — список «качественное, но не в базе».
+3. **Собственники:** ЕГРН по приоритетным участкам, ЕГРЮЛ, задачи в WEEEK. После него задача закрыта для качественного.
+4. **Арендаторы и конкуренты:** организации на картах, фиды.
+5. **Будущее предложение:** разрешения, ГПЗУ, инвесткарта, ПЗЗ (метод пилота — 19 из 30, редакцию проверяет человек).
+6. **ИИ-обогащение:** агент собирает факты о сером участке для аналитика.
+
+Этапы 4–6 можно менять местами.
+
+## 9. Риски
+
+- **НСПД без API, работал только через российский выход; РГИС и ГИСОГД молчат** — грузим один раз, обновляем раз в квартал, запас — платный поставщик.
+- **Вид использования неточен** — маска из кадастра, OSM и крупного здания; ручное добавление.
+- **Ложная привязка: в пилоте земля найдена для 13 из 30, ещё 9 — только площадка** — кандидат и очередь подтверждения.
+- **Лицензии Яндекса, ЦИАН, M2Data** — Яндекс подложкой, ЦИАН через снимок, M2Data по договору.
+- **Разрастание в тяжёлую ГИС** — один вопрос и один счётчик на этап, сложное в QGIS, интерфейс без обучения.
+
+## 10. Решено и открыто
+
+Решил руководитель 26.11.2026: качественное — A и B; пользуются все сотрудники; подтверждает любой, с историей; привязка по корпусам и блокам; бюджет на ЕГРН есть, по приоритетным участкам; ведёт команда CTO, формат снимков — с ответственным за HerzenCRM, пилот и 30 карточек — эталон.
+
+| Открыто | Кому |
+| --- | --- |
+| Как в CRM отличить объект с собственником и контактом | ответственный за HerzenCRM, до старта |
+| Машина и выход к НСПД | Команда CTO с администратором, до старта |
+| Можно ли долго хранить слои НСПД и сырые ответы | CTO, до старта |
+| Платный кадастр и лицензии карт | руководитель, после среза |
+| ЦИАН и M2Data по договору | руководитель, ответственный за HerzenCRM |
+| ПЗЗ раньше этапа 5 | руководитель |
+
+## 11. Аналоги и детали
+
+Готовой российской карты покрытия нет. У зарубежных берём модель, не код.
+
+- [LandInsight](https://land.tech/blog/how-to-access-ownership-information-quickly-for-efficient-site-sourcing) — слой собственников, выписка из паспорта.
+- [Regrid](https://support.regrid.com/parcel-data/buildings-schema) — участок–здание «многие ко многим».
+- [Reonomy](https://reonomy.com/blog/post/commercial-property-owners) — дерево собственника.
+- [Cherre](https://blog.cherre.com/2021/07/02/improving-knowledge-graph-quality-with-neighborhood-based-entity-resolution/) — сопоставление по соседям, ложное слияние хуже пропуска.
+- [Overture Maps](https://docs.overturemaps.org/guides/buildings) — запасные контуры зданий, совпадение при перекрытии больше 50%.
+- Конкуренты: [IBC Real Estate](https://data.ibcrealestate.ru/), [Гид Склады РФ](https://xn--80afdbrnh0cyf.xn--p1ai/), [SkladMaps](https://skladmaps.ru/o-servise).
+- [Martin](https://github.com/maplibre/martin) — плитки из PostGIS.
+- [pynspd](https://pypi.org/project/pynspd/) — Python для НСПД.
+- [rosreestr2coord](https://github.com/rendrom/rosreestr2coord) — граница участка в GeoJSON.
+- [NSPD_Fetcher](https://plugins.qgis.org/plugins/NSPD_Fetcher/) — плагин QGIS для среза.
+- [Russian-Cadastral-Parcels](https://huggingface.co/datasets/daniilak/Russian-Cadastral-Parcels) — готовый набор участков, проверить дату.
+- [Контур.Недвижимость API](https://kontur.ru/real-estate/api) — платный запас.
+- [Условия API Яндекс Карт](https://yandex.ru/dev/commercial/doc/ru/) — запрет хранить данные.
+</script><script type="text/markdown" id="md-starter"># Стартовый набор
+
+Три вещи, с которыми команда начинает в первый день: схема базы, правила для ИИ-агентов репозитория и задачи на две недели. Схема и правила — черновики: команда копирует их в репозиторий и правит по итогам среза. Схема не запускалась на живой базе.
+
+## Задачи на первые две недели
+
+Неделя 1 — вертикальный срез на одном округе. Цель — ответить на три вопроса: насколько полно НСПД отдаёт границы, у какой доли объектов CRM собирается черновик границы, годится ли вид использования как маска.
+
+- [ ] Выбрать округ: плотная складская застройка и не меньше 20 объектов CRM (руководитель).
+- [ ] Поднять PostgreSQL с PostGIS и применить схему ниже.
+- [ ] Адаптер НСПД: участки и здания округа, кеш ответов, не чаще запроса в секунду. Основа — коллектор пилота `nspd_collect.py`.
+- [ ] Адаптер OpenStreetMap: контуры зданий и `landuse=industrial` округа.
+- [ ] Адаптер снимка CRM: объекты, корпуса и блоки с точками и ролью точки. Снимки HerzenStats по ключу; доступ и формат — с ответственным за HerzenCRM.
+- [ ] Черновики границ по точкам корпусов и соседи-кандидаты.
+- [ ] Тесты на эталоне пилота (30 карточек): Ерино, Немчиновка, Плещеевская, Бережки.
+- [ ] Отчёт среза на одну страницу и решение о сроке MVP.
+
+Неделя 2 — карта, которой можно пользоваться на этом округе.
+
+- [ ] Martin и MapLibre: слои участков, зданий, окраска по шкале.
+- [ ] Паспорт по клику: поля с источником и датой или «не знаем».
+- [ ] Режим границы: включить или исключить участок, «Граница верна», журнал правок.
+- [ ] Счётчики покрытия и разметки, сверка с контрольным SQL-запросом.
+- [ ] Вход по рабочей учётке.
+- [ ] Показ руководителю и аналитику: за 15 минут без подсказок найти пять крупнейших серых участков и подтвердить одну границу.
+
+## Схема базы
+
+По разделу «Модель данных» ТЗ. Уровень знания и покрытие не хранятся, а считаются представлениями.
+
+```sql
+create extension if not exists postgis;
+
+-- Источники и сырые записи: не правим и не удаляем
+create table source (
+  id serial primary key,
+  name text unique not null,          -- nspd, osm, crm_snapshot, cian_offers ...
+  terms text,                         -- условия использования и хранения
+  refresh text,                       -- как часто обновляем
+  priority int not null default 100   -- чей факт сильнее при споре
+);
+
+create table source_record (
+  id bigserial primary key,
+  source_id int not null references source,
+  external_id text not null,
+  payload jsonb not null,
+  geom geometry(Geometry, 4326),
+  address text,
+  fetch_status text not null check (fetch_status in ('ok','timeout','denied','bad_format','empty')),
+  first_seen timestamptz not null default now(),
+  last_seen timestamptz not null default now(),
+  unique (source_id, external_id)
+);
+
+-- Земля и здания: свой номер, кадастровый — внешний ключ с историей
+create table parcel (
+  id bigserial primary key,
+  geom geometry(MultiPolygon, 4326) not null,
+  geom_version int not null default 1,
+  land_category text,
+  permitted_use text,
+  area_m2 numeric,
+  is_industrial boolean,              -- null = не знаем
+  retired_at timestamptz              -- участок разделили или объединили
+);
+
+create table cadnum (
+  entity_type text not null check (entity_type in ('parcel','building')),
+  entity_id bigint not null,
+  cadnum text not null,
+  valid_from date not null,
+  valid_to date,
+  primary key (entity_type, entity_id, cadnum, valid_from)
+);
+
+create table building (
+  id bigserial primary key,
+  geom geometry(MultiPolygon, 4326) not null,
+  osm_id bigint,
+  footprint_m2 numeric,               -- площадь пятна
+  cadastral_m2 numeric,               -- кадастровая площадь, отдельно
+  floors int
+);
+
+-- Комплекс, как его знает рынок, и его граница
+create table site (
+  id bigserial primary key,
+  name text,
+  kind text check (kind in ('warehouse','production','land','yard')),
+  class text,                         -- A, B+, B, C; null = не знаем
+  boundary geometry(MultiPolygon, 4326),
+  boundary_status text not null default 'none'
+    check (boundary_status in ('none','draft','confirmed','recheck')),
+  excluded_reason text                -- «не наш профиль»: ТЭЦ, депо ...
+);
+
+create table party (
+  id bigserial primary key,
+  inn text unique,
+  name text not null,
+  group_name text
+);
+
+-- Карточка CRM как есть. Контактов людей здесь нет
+create table crm_card (
+  id bigserial primary key,
+  crm_id text not null,
+  kind text not null check (kind in ('object','corpus','block')),
+  parent_crm_id text,
+  addresses jsonb,                    -- адреса по ролям
+  point geometry(Point, 4326),
+  point_role text check (point_role in ('complex','corpus','block')),
+  leasable_m2 numeric,
+  owner_and_contact_filled boolean,   -- признак «зелёного», без самих контактов
+  snapshot_date date not null,
+  unique (crm_id, snapshot_date)
+);
+
+-- Связи «многие ко многим»: карту красит только confirmed
+create table link (
+  id bigserial primary key,
+  from_type text not null, from_id bigint not null,
+  to_type text not null,   to_id bigint not null,
+  status text not null check (status in ('candidate','confirmed','rejected')),
+  method text not null check (method in ('document','cadnum','point_in_parcel','address','name','photo','manual')),
+  scope text check (scope in ('corpus','shared_parcel','site','part_of_parcel')),
+  evidence jsonb,
+  created_by text not null, created_at timestamptz not null default now(),
+  decided_by text, decided_at timestamptz,
+  revoked_by text, revoked_at timestamptz
+);
+
+-- Одно утверждение об объекте. Неизвестное — нет строки, а не ноль
+create table fact (
+  id bigserial primary key,
+  entity_type text not null, entity_id bigint not null,
+  field text not null,                -- area_m2, class, owner, tenant ...
+  value jsonb not null,
+  party_id bigint references party,   -- для собственника и арендатора
+  source_record_id bigint references source_record,  -- null = вручную
+  observed_at date,
+  created_by text not null,
+  created_at timestamptz not null default now(),
+  revoked_at timestamptz
+);
+
+create table review_task (
+  id bigserial primary key,
+  entity_type text not null, entity_id bigint not null,
+  missing text not null,              -- чего не хватает
+  candidates jsonb,
+  status text not null default 'open' check (status in ('open','done','excluded')),
+  result text,
+  closed_by text, closed_at timestamptz
+);
+
+create index on parcel using gist (geom);
+create index on building using gist (geom);
+create index on site using gist (boundary);
+create index on crm_card using gist (point);
+create index on link (from_type, from_id);
+create index on link (to_type, to_id);
+create index on fact (entity_type, entity_id, field);
+```
+
+## Правила для ИИ-агентов репозитория
+
+Положить в корень репозитория как `AGENTS.md` (Claude Code читает его через `CLAUDE.md` со строкой `@AGENTS.md`). Собрано из правил, проверенных на прототипах, и уроков пилота.
+
+```markdown
+# Правила для агентов: Карта рынка HERZEN
+
+Срез на <дата>. ТЗ: <ссылка>.
+
+## Данные
+- Автоматика создаёт только связи-кандидаты. confirmed ставит человек или документ (кадастровый номер из акта).
+- Точка объекта CRM (point_role = complex) в расчёте границ не участвует. Граница строится по точкам корпусов и блоков.
+- Неизвестное — null или нет строки, никогда не 0 и не «не найдено».
+- Ошибка источника пишется в fetch_status: timeout, denied, bad_format, empty. Это не «объекта нет».
+- source_record не правим и не удаляем. Ошибку исправляем новой связью или ручным фактом.
+- Телефоны, почты и имена людей из CRM не храним, не логируем, не выводим. Только признак «контакт есть» и ссылка на карточку.
+
+## Источники
+- Источник подключается адаптером: он пишет только source_record. В site, link и fact пишет общий модуль сопоставления.
+- НСПД: не чаще запроса в секунду, кеш ответов, остановка на ошибке доступа.
+- HerzenCRM не опрашиваем напрямую и не пишем в неё. Читаем ночной снимок.
+- Данные Яндекс Карт не сохраняем. Защиту площадок («я не робот», лимиты) не обходим.
+- Новая библиотека или сервис — строка в docs/parts.md: что, зачем, чем заменить.
+
+## Работа
+- Сначала тест на эталоне пилота (tests/fixtures/pilot-30), потом код.
+- Сеть, VPN, порты, доступы к госсистемам — только тикетом администратору. Обходных путей не ищем.
+- Сбой, после которого что-то чинили, — запись в docs/incidents.md и правило из неё.
+- Первая строка каждого документа — дата среза. Сверху — как сейчас, история — ниже.
+- Цвета, шрифты и отступы — только из дизайн-кода проекта (design/tokens.css).
+- KISS: на каждом этапе один вопрос бизнеса и один счётчик. Сложная аналитика — в QGIS, свой ГИС-редактор не пишем.
+```
+</script><script type="text/markdown" id="md-appendix"># Приложение: пилот обогащения
+
+Отдельный исследовательский пилот в Codex (октябрь 2026) прошёл путь «карточка CRM → участок → зона → разрешённое использование» на 20 объектах (30 карточек корпусов и земли). Факты проверены на 20.10.2026 и позже не перепроверялись. Это эталонный набор для тестов и задел адаптера, а не работающая ГИС.
+
+## Что сделано
+
+| Статус | Что именно |
+| --- | --- |
+| Реализовано | Коллектор НСПД (`nspd_collect.py`): поиск по адресу и кадастровому номеру, кандидаты по точке, пересечение полного контура участка с зонами, кеш ответов с контрольной суммой, остановка на ошибках доступа |
+| Реализовано | Полные перечни разрешённого использования по ПЗЗ для 19 карточек из 30: 1090 строк (919 основных и 171 условная, с повторами по карточкам), у каждой строки источник и точное место в нём: страница PDF или якорь HTML |
+| Реализовано | Квалификация охвата: 8 карточек — конкретный участок, 2 — общий участок при неразличённых зданиях, 9 — общая площадка; 10 не решены, 1 исключена руководителем |
+| Исследовано, не закрыто | Массовая выгрузка региона из НСПД, право долго хранить слои, полнота OSM и НСПД. РГИС Московской области и ГИСОГД Москвы подключить не удалось |
+| Не делалось | Геобаза, карта, фоновый мониторинг, запись в CRM, установление собственников и контактов |
+
+Выборка из 20 последних объектов не представляет рынок: по ней нельзя обещать ни долю автоматического закрытия, ни скорость покрытия региона.
+
+## Проверки на эталоне (30 карточек, версия от 20.10.2026)
+
+Эти проверки — часть приёмки MVP.
+
+- [ ] Точка комплекса внутри участка создаёт кандидата. В тесте Ерино соседний участок не подтверждается.
+- [ ] Найденный участок одного корпуса не переносится на остальные корпуса объекта.
+- [ ] Связи уровня «площадка» и «общий участок» не увеличивают счётчик точных привязок корпусов.
+- [ ] В Немчиновке окрашена только часть большого участка, занятая площадкой.
+- [ ] Касание границ и пересечения с ничтожной площадью не создают связей (Плещеевская, Бережки).
+- [ ] Неподтверждённое значение хранится как пусто, а не ноль. Альфа остаётся «не знаем».
+- [ ] Тайм-аут, отказ в доступе, неожиданный формат и пустой ответ источника — четыре разных состояния; ни одно не превращается в «объект не найден».
+- [ ] Импорт эталона сохраняет исходные номера CRM, адреса и порядок всех 30 карточек.
+
+## Разрешённое использование по ПЗЗ (этап 5)
+
+Полный перечень разрешённого использования (основные и условные виды) не получается одним запросом: НСПД отдаёт номер зоны, но не её действующий подтип и не текст регламента. Регламент берётся из принятого акта и его поправок, с проверкой даты содержания и территории. Один проверенный регламент переиспользуется для всех участков зоны.
+
+Для этого слоя пилот предлагает ещё четыре таблицы: зона с версиями геометрии, редакция ПЗЗ, строка справочника ВРИ, применённый к карточке перечень. В MVP они не входят. Вид использования из кадастра и полный перечень по ПЗЗ — разные поля из разных источников.
+
+## Пакет пилота
+
+Пакет лежит у руководителя локально и передаётся команде CTO: три описания, коллектор НСПД, финальный JSON, таблица из 1090 строк, 30 компактных записей с раздельными полями для подтверждённых и кандидатных участков, карта 34 исходных материалов с контрольными суммами, примеры запросов и схема процесса пилота. Контактов, паролей и ключей в пакете нет.
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script>
+(function(){
+  var out=document.getElementById('out');
+  function show(){
+    var t=(location.hash||'#tz').slice(1);if(['tz','starter','appendix'].indexOf(t)<0)t='tz';
+    var src=document.getElementById('md-'+t).textContent;
+    out.innerHTML=window.marked?marked.parse(src,{gfm:true}):'<pre>'+src.replace(/[&<]/g,function(c){return c==='&'?'&amp;':'&lt;'})+'</pre>';
+    out.querySelectorAll('table').forEach(function(tb){var w=document.createElement('div');w.className='tw';tb.parentNode.insertBefore(w,tb);w.appendChild(tb)});
+    out.querySelectorAll('a[href^="http"]').forEach(function(a){a.target='_blank';a.rel='noopener'});
+    document.querySelectorAll('nav a[data-t]').forEach(function(a){a.classList.toggle('on',a.dataset.t===t)});
+    window.scrollTo(0,0);
+  }
+  window.addEventListener('hashchange',show);show();
+})();
+</script></body></html>
